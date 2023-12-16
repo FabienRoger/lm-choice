@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Counter with Local Storage</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        button {
+            padding: 0.1em 0.5em;
+        }
+
+        .container {
+            width: min(800px, 99vw);
+        }
+
+        #counter {
+            margin: 0 0.5em;
+        }
+
+        #data {
+            width: 100%;
+            white-space: pre-wrap;
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .token-chosen {
+            display: flex;
+            flex-direction: column;
+            /* justify-content: flex-start; */
+            align-items: start;
+        }
+
+        .token-choice {
+            display: flex;
+            flex-direction: column;
+            /* justify-content: flex-start; */
+            align-items: start;
+            border: 1px solid gray;
+        }
+
+        .lower-token {
+            color: gray;
+            font-size: 0.5rem;
+        }
+
+        .score {
+            font-size: 0.8rem;
+        }
+
+        .no-score {
+            color: rgb(124, 124, 124);
+        }
+
+        .positive-score {
+            color: rgb(186, 192, 252);
+        }
+
+        .negative-score {
+            color: rgb(252, 164, 164);
+        }
+
+        .button-row {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            justify-content: center;
+            gap: 0.2rem;
+        }
+
+        .score-row {
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+            width: 100%;
+        }
+
+        .score-cell {
+            display: inline-block;
+            height: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Language modelling game!</h1>
+    <div class="container">
+        <p>Which token is more likely? Press k to select the upper one and k to select the other. The score of that
+            token
+            will be shown in blue if you were correct. The number between each past token is the difference in log
+            probability between the top and the bottom token. Your score will increase if you select the top one and
+            that
+            difference is positive, or if you select the bottom one and that difference is negative.</p>
+        <div id="data"></div>
+        <div id="score"></div>
+        <div class="button-row">
+            <button id="beginning">&lt&lt</button>
+            <button id="previous">&lt</button>
+            <div id="counter"></div>
+            <button id="next">&gt</button>
+            <button id="end">&gt&gt</button>
+        </div>
+        <div class="button-row">
+            <button id="reset">Reset document</button>
+        </div>
+        <div class="score-row"></div>
+
+    </div>
+
+    <script>
+        const whiteSpace = "<span style='color: gray'>_</span>";
+        const newLine = "<span style='color: gray'>↵</span>";
+        const showFirstN = 10;
+        const minDoc = 0;
+        const maxDoc = 75;
+        const nbDocuments = maxDoc - minDoc + 1;
+
+        let score = 0;
+        let perfectScore = 0;
+        let observedScore = 0;
+        let currentTokens = []; // Like [[{t: "hello", lp: 1}, {t: "world", lp: 1}], [{t: "hello", lp: 1}, {t: "world", lp: 1}]]
+        let currentIdx = 0;
+
+        let counter = localStorage.getItem('counter') ? parseInt(localStorage.getItem('counter')) : 0;
+        document.getElementById('counter').textContent = counter;
+
+        let docChoices = [];
+
+        // list of scores per document
+        let docScores = localStorage.getItem('docScores') ? JSON.parse(localStorage.getItem('docScores')) : [];
+
+        function round(x) {
+            return Math.round(x * 10) / 10;
+        }
+        function roundedSigned(x) {
+            const xRounded = round(x);
+            return xRounded > 0 ? "+" + xRounded : xRounded;
+        }
+
+        function updateDocChoices(newDocChoices) {
+            docChoices = newDocChoices;
+            localStorage.setItem('docChoices' + counter, JSON.stringify(docChoices));
+        }
+
+        function updateDocScores(newDocScores) {
+            docScores = newDocScores;
+            localStorage.setItem('docScores', JSON.stringify(docScores));
+
+            // clear and rebuild the score row: little rectangle from blue to red based on the score
+            const scoreRow = document.querySelector('.score-row');
+            scoreRow.innerHTML = "";
+            for (let i = 0; i < docScores.length; i++) {
+                const scoreSpan = document.createElement('span');
+                scoreSpan.classList.add('score-cell');
+                // compute width of the cell
+                const scoreWidth = scoreRow.clientWidth / docScores.length;
+                scoreSpan.style.width = scoreWidth + "px";
+                // compute color of the cell, darker blue for higher score, darker red for lower score
+                const otherChannels = 255 - Math.round(Math.abs(docScores[i]) * 255);
+                const color = docScores[i] > 0 ? `rgb(${otherChannels}, ${otherChannels}, 255)` : `rgb(255, ${otherChannels}, ${otherChannels})`;
+                scoreSpan.style.backgroundColor = color;
+                scoreRow.appendChild(scoreSpan);
+            }
+        }
+
+        if (docScores.length < nbDocuments) {
+            for (let i = docScores.length; i < nbDocuments; i++) {
+                docScores.push(0);
+            }
+            updateDocScores(docScores);
+        }
+
+        function updateScore(newScore, newPerfectScore, newObservedScore) {
+            score = newScore;
+            // document.getElementById('score').textContent = "Document score: " + roundedSigned(score);
+            document.getElementById('score').textContent = "Document score: " + roundedSigned(score) + " (perfect: " + roundedSigned(newPerfectScore) + ", babbage: " + roundedSigned(newObservedScore) + ")";
+
+            perfectScore = newPerfectScore;
+            observedScore = newObservedScore;
+
+            docScores[counter] = perfectScore > 0 ? score / perfectScore : 0;
+            updateDocScores(docScores);
+        }
+
+        function updateDocumentCounter(newCounter) {
+            counter = newCounter;
+            document.getElementById('counter').textContent = counter;
+        }
+
+        function cleanData() {
+            document.getElementById('data').textContent = "";
+            document.getElementById('data').children = [];
+        }
+
+        function getToken(s) {
+            const span = document.createElement('span');
+            span.innerHTML = s.replace(/ /g, whiteSpace).replace(/\n/g, newLine);
+            span.classList.add('token');
+            return span;
+        }
+
+        function addTokenChosen(pair, chose) {
+            const topSpan = getToken(pair[0]["t"]);
+            const botSpan = getToken(pair[1]["t"]);
+            botSpan.classList.add('lower-token');
+            const lpDiff = pair[0]["lp"] - pair[1]["lp"];
+            const lpDiffSpand = document.createElement('span');
+            lpDiffSpand.textContent = roundedSigned(lpDiff);
+
+            let correct = undefined;
+            let newPerfectScore = Math.abs(lpDiff) + perfectScore;
+            let newObservedScore = observedScore + (pair[0]["olp"] > pair[1]["olp"] ? lpDiff : -lpDiff);
+            if (chose === "up") {
+                updateScore(score + lpDiff, newPerfectScore, newObservedScore);
+                correct = lpDiff > 0;
+            } else if (chose === "down") {
+                updateScore(score - lpDiff, newPerfectScore, newObservedScore);
+                correct = lpDiff < 0;
+            }
+            if (correct === true) {
+                lpDiffSpand.classList.add('positive-score');
+            } else if (correct === false) {
+                lpDiffSpand.classList.add('negative-score');
+            } else {
+                lpDiffSpand.classList.add('no-score');
+            }
+            lpDiffSpand.classList.add('score');
+
+            const holder = document.createElement('div');
+            holder.classList.add('token-chosen');
+            holder.appendChild(topSpan);
+            holder.appendChild(botSpan);
+            holder.appendChild(lpDiffSpand);
+
+            document.getElementById('data').appendChild(holder);
+        }
+
+        function addTokenChoice(pair) {
+            const topSpan = getToken(pair[0]["t"]);
+            const botSpan = getToken(pair[1]["t"]);
+
+            const holder = document.createElement('div');
+            holder.classList.add('token-choice');
+            holder.appendChild(topSpan);
+            holder.appendChild(botSpan);
+
+            document.getElementById('data').appendChild(holder);
+
+            const trivialChoice = pair[0]["t"] === pair[1]["t"];
+            return trivialChoice;
+        }
+
+        function tokenChoiceToTokenChosen(chose) {
+            if (currentIdx < currentTokens.length) {
+                document.getElementById('data').lastChild.remove();
+                addTokenChosen(currentTokens[currentIdx], chose);
+                currentIdx++;
+                if (currentIdx < currentTokens.length) {
+                    return addTokenChoice(currentTokens[currentIdx]);
+                }
+            }
+            return false;
+        }
+
+        async function loadDocument() {
+            const url = `pairs/${counter}.json`;
+
+            const response = await fetch(url);
+            const data = await response.json();
+
+            cleanData();
+            // document.getElementById('data').textContent = JSON.stringify(data);
+            currentTokens = data;
+            currentIdx = 0;
+            updateScore(0, 0, 0);
+            addTokenChoice(currentTokens[currentIdx]);
+            let trivial = false;
+            for (let i = 0; (i < showFirstN) || trivial; i++) {
+                trivial = tokenChoiceToTokenChosen();
+            }
+
+            docChoices = localStorage.getItem('docChoices' + counter) ? JSON.parse(localStorage.getItem('docChoices' + counter)) : [];
+            for (let i = 0; i < docChoices.length; i++) {
+                let trivial = tokenChoiceToTokenChosen(docChoices[i]);
+                while (trivial) {
+                    trivial = tokenChoiceToTokenChosen();
+                }
+            }
+
+            document.getElementById('counter').textContent = "Document N°" + counter;
+        }
+
+
+        function disableButtonRow() {
+            document.getElementById('beginning').disabled = true;
+            document.getElementById('previous').disabled = true;
+            document.getElementById('next').disabled = true;
+            document.getElementById('end').disabled = true;
+        }
+
+        function enableButtonRow() {
+            document.getElementById('beginning').disabled = false;
+            document.getElementById('previous').disabled = (counter === minDoc);
+            document.getElementById('next').disabled = (counter === maxDoc);
+            document.getElementById('end').disabled = false;
+        }
+
+        async function loadDocumentByCounter(newCounter) {
+            counter = newCounter;
+            disableButtonRow();
+            await loadDocument();
+            enableButtonRow();
+            localStorage.setItem('counter', counter);
+        }
+
+        document.getElementById('beginning').addEventListener('click', async function () {
+            await loadDocumentByCounter(minDoc);
+        });
+        document.getElementById('previous').addEventListener('click', async function () {
+            await loadDocumentByCounter(counter - 1);
+        });
+        document.getElementById('next').addEventListener('click', async function () {
+            await loadDocumentByCounter(counter + 1);
+        });
+        document.getElementById('end').addEventListener('click', async function () {
+            await loadDocumentByCounter(maxDoc);
+        });
+        document.getElementById('reset').addEventListener('click', async function () {
+            updateDocChoices([]);
+            docChoices = [];
+            loadDocumentByCounter(counter);
+        });
+
+        document.addEventListener('keydown', function (e) {
+            let trivial = false;
+            if (e.key === "k") {
+                trivial = tokenChoiceToTokenChosen("up");
+                docChoices.push("up");
+                updateDocChoices(docChoices);
+            } else if (e.key === "j") {
+                trivial = tokenChoiceToTokenChosen("down");
+                docChoices.push("down");
+                updateDocChoices(docChoices);
+            }
+            while (trivial) {
+                trivial = tokenChoiceToTokenChosen();
+            }
+        });
+
+        disableButtonRow();
+        enableButtonRow();
+        loadDocument();
+
+    </script>
+
+</body>
+
+</html>
