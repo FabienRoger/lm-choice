@@ -96,12 +96,10 @@
 <body>
     <h1>Language modelling game!</h1>
     <div class="container">
-        <p>Which token is more likely? Press k to select the upper one and k to select the other. The score of that
-            token
-            will be shown in blue if you were correct. The number between each past token is the difference in log
-            probability between the top and the bottom token. Your score will increase if you select the top one and
-            that
-            difference is positive, or if you select the bottom one and that difference is negative.</p>
+        <p>Which token is more likely? Press k to select the upper one and k to select the other.</p>
+        <p> The number below each token is the difference in log
+            probability between the top and the bottom token (positive if top is more likely, negative otherwise). The
+            score is shown in blue if you were correct and red if incorrect.</p>
         <div id="data"></div>
         <div id="score"></div>
         <div class="button-row">
@@ -119,7 +117,7 @@
     </div>
 
     <script>
-        const whiteSpace = "<span style='color: gray'>_</span>";
+        const whiteSpace = "<span style='color: gray'>·</span>";
         const newLine = "<span style='color: gray'>↵</span>";
         const showFirstN = 10;
         const minDoc = 0;
