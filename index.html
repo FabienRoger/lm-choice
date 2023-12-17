@@ -19,7 +19,7 @@
         }
 
         .container {
-            width: min(800px, 99vw);
+            width: min(800px, 95vw);
         }
 
         #counter {
@@ -159,18 +159,21 @@
 
             // clear and rebuild the score row: little rectangle from blue to red based on the score
             const scoreRow = document.querySelector('.score-row');
-            scoreRow.innerHTML = "";
             for (let i = 0; i < docScores.length; i++) {
-                const scoreSpan = document.createElement('span');
-                scoreSpan.classList.add('score-cell');
-                // compute width of the cell
-                const scoreWidth = scoreRow.clientWidth / docScores.length;
-                scoreSpan.style.width = scoreWidth + "px";
-                // compute color of the cell, darker blue for higher score, darker red for lower score
                 const otherChannels = 255 - Math.round(Math.abs(docScores[i]) * 255);
                 const color = docScores[i] > 0 ? `rgb(${otherChannels}, ${otherChannels}, 255)` : `rgb(255, ${otherChannels}, ${otherChannels})`;
-                scoreSpan.style.backgroundColor = color;
-                scoreRow.appendChild(scoreSpan);
+                if (scoreRow.children.length > i) {
+                    scoreRow.children[i].style.backgroundColor = color;
+                } else {
+                    const scoreSpan = document.createElement('span');
+                    scoreSpan.classList.add('score-cell');
+                    // compute width of the cell
+                    const scoreWidth = scoreRow.clientWidth / docScores.length;
+                    scoreSpan.style.width = scoreWidth + "px";
+                    // compute color of the cell, darker blue for higher score, darker red for lower score
+                    scoreSpan.style.backgroundColor = color;
+                    scoreRow.appendChild(scoreSpan);
+                }
             }
         }
 
@@ -269,6 +272,11 @@
                 if (currentIdx < currentTokens.length) {
                     return addTokenChoice(currentTokens[currentIdx]);
                 }
+            } else if (currentIdx === currentTokens.length) {
+                const disclaimer = document.createElement('div');
+                disclaimer.innerHTML = "<br></br>Document finished. Go to next document? (n)";
+                document.getElementById('data').appendChild(disclaimer);
+                currentIdx++;
             }
             return false;
         }
@@ -343,6 +351,12 @@
         });
 
         document.addEventListener('keydown', function (e) {
+            if (e.key === "n" && counter < maxDoc) {
+                loadDocumentByCounter(counter + 1);
+            } else if (e.key === "p" && counter > minDoc) {
+                loadDocumentByCounter(counter - 1);
+            }
+
             let trivial = false;
             if (e.key === "k") {
                 trivial = tokenChoiceToTokenChosen("up");
