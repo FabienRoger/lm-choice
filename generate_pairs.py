@@ -50,13 +50,6 @@ valid_idxs = [
     for i, choice in enumerate(choices)
     if not any(any(s in t for s in forbidden_substring) for t in choice["logprobs"]["tokens"])
 ]
-
-forbidden_substring = [R"\u", R"bytes:"]
-valid_idxs = [
-    i
-    for i, choice in enumerate(choices)
-    if not any(any(s in t for s in forbidden_substring) for t in choice["logprobs"]["tokens"])
-]
 print(len(valid_idxs), "/", len(choices), "valid")
 
 j = start_idx

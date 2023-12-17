@@ -100,8 +100,11 @@
     <div class="container">
         <p>Which token is more likely? Press k to select the upper one and j to select the other.</p>
         <p> The number below each token is the difference in log
-            probability between the top and the bottom token (positive if top is more likely, negative otherwise). The
-            score is shown in blue if you were correct and red if incorrect.</p>
+            probability between the top and the bottom token (positive if top is more likely, negative otherwise)
+            according to davinci-002 (which we consider to be perfect). Both tokens davinci-002 samples. Babbage is
+            babbage-002.
+        </p>
+        <p>The score is shown in blue if you were correct and in red if incorrect.</p>
         <div id="data"></div>
         <div id="score"></div>
         <div id="relative-score"></div>
@@ -295,7 +298,7 @@
                 }
             } else if (currentIdx === currentTokens.length) {
                 const disclaimer = document.createElement('div');
-                disclaimer.innerHTML = "<br></br>Document finished. Go to next document? (n)";
+                disclaimer.innerHTML = "<br></br>Document finished. Go to next document? (press n)";
                 document.getElementById('data').appendChild(disclaimer);
                 currentIdx++;
             }
