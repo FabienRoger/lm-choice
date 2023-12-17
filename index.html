@@ -104,6 +104,8 @@
             score is shown in blue if you were correct and red if incorrect.</p>
         <div id="data"></div>
         <div id="score"></div>
+        <div id="relative-score"></div>
+        <div id="overall-relative-score"></div>
         <div class="button-row">
             <button id="beginning">&lt&lt</button>
             <button id="previous">&lt</button>
@@ -139,12 +141,15 @@
 
         // list of scores per document
         let docScores = localStorage.getItem('docScores') ? JSON.parse(localStorage.getItem('docScores')) : [];
+        let docPerfectScores = localStorage.getItem('docPerfectScores') ? JSON.parse(localStorage.getItem('docPerfectScores')) : [];
+        let docObservedScores = localStorage.getItem('docObservedScores') ? JSON.parse(localStorage.getItem('docObservedScores')) : [];
 
-        function round(x) {
-            return Math.round(x * 10) / 10;
+        function round(x, d) {
+            const factor = Math.pow(10, d);
+            return Math.round(x * factor) / factor;
         }
-        function roundedSigned(x) {
-            const xRounded = round(x);
+        function roundedSigned(x, d = 1) {
+            const xRounded = round(x, d);
             return xRounded > 0 ? "+" + xRounded : xRounded;
         }
 
@@ -153,14 +158,18 @@
             localStorage.setItem('docChoices' + counter, JSON.stringify(docChoices));
         }
 
-        function updateDocScores(newDocScores) {
+        function updateDocScores(newDocScores, newDocPerfectScores, newDocObservedScores) {
             docScores = newDocScores;
+            docPerfectScores = newDocPerfectScores;
+            docObservedScores = newDocObservedScores;
             localStorage.setItem('docScores', JSON.stringify(docScores));
+            localStorage.setItem('docPerfectScores', JSON.stringify(docPerfectScores));
+            localStorage.setItem('docObservedScores', JSON.stringify(docObservedScores));
 
             // clear and rebuild the score row: little rectangle from blue to red based on the score
             const scoreRow = document.querySelector('.score-row');
             for (let i = 0; i < docScores.length; i++) {
-                const otherChannels = 255 - Math.round(Math.abs(docScores[i]) * 255);
+                const otherChannels = 255 - Math.round(Math.abs(docPerfectScores[i] > 0 ? docScores[i] / docPerfectScores[i] : 0) * 255);
                 const color = docScores[i] > 0 ? `rgb(${otherChannels}, ${otherChannels}, 255)` : `rgb(255, ${otherChannels}, ${otherChannels})`;
                 if (scoreRow.children.length > i) {
                     scoreRow.children[i].style.backgroundColor = color;
@@ -177,23 +186,35 @@
             }
         }
 
-        if (docScores.length < nbDocuments) {
-            for (let i = docScores.length; i < nbDocuments; i++) {
-                docScores.push(0);
-            }
-            updateDocScores(docScores);
+        for (let i = docScores.length; i < nbDocuments; i++) {
+            docScores.push(0);
         }
+        for (let i = docPerfectScores.length; i < nbDocuments; i++) {
+            docPerfectScores.push(0);
+        }
+        for (let i = docObservedScores.length; i < nbDocuments; i++) {
+            docObservedScores.push(0);
+        }
+        updateDocScores(docScores, docPerfectScores, docObservedScores);
+
 
         function updateScore(newScore, newPerfectScore, newObservedScore) {
             score = newScore;
-            // document.getElementById('score').textContent = "Document score: " + roundedSigned(score);
             document.getElementById('score').textContent = "Document score: " + roundedSigned(score) + " (perfect: " + roundedSigned(newPerfectScore) + ", babbage: " + roundedSigned(newObservedScore) + ")";
+            document.getElementById('relative-score').textContent = "Document relative score: " + roundedSigned(score / newPerfectScore, 3) + " (babbage: " + roundedSigned(newObservedScore / newPerfectScore, 3) + ")";
+            const overallScore = docScores.reduce((a, b) => a + b, 0);
+            const overallPerfectScore = docPerfectScores.reduce((a, b) => a + b, 0);
+            const overallObservedScore = docObservedScores.reduce((a, b) => a + b, 0);
+            document.getElementById('overall-relative-score').textContent = "Overall relative score: " + roundedSigned(overallScore / overallPerfectScore, 3) + " (babbage: " + roundedSigned(overallObservedScore / overallPerfectScore, 3) + ")";
 
             perfectScore = newPerfectScore;
             observedScore = newObservedScore;
 
-            docScores[counter] = perfectScore > 0 ? score / perfectScore : 0;
-            updateDocScores(docScores);
+            docScores[counter] = score;
+            docPerfectScores[counter] = perfectScore;
+            docObservedScores[counter] = observedScore;
+
+            updateDocScores(docScores, docPerfectScores, docObservedScores);
         }
 
         function updateDocumentCounter(newCounter) {
