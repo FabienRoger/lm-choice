@@ -18,6 +18,10 @@
             padding: 0.1em 0.5em;
         }
 
+        .with-padding {
+            padding: 1em;
+        }
+
         .container {
             width: min(800px, 95vw);
         }
@@ -419,11 +423,14 @@
         if (mobileOrTablet()) {
             jButton = document.createElement('button');
             jButton.textContent = "J (down)";
+            jButton.classList.add('with-padding');
+
             jButton.addEventListener('click', function () {
                 press("down");
             });
             kButton = document.createElement('button');
             kButton.textContent = "K (up)";
+            kButton.classList.add('with-padding');
             kButton.addEventListener('click', function () {
                 press("up");
             });
